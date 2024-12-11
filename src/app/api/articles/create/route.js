@@ -11,6 +11,11 @@ const repo = process.env.GITHUB_REPO;
 const articlesJsonPath = 'data/json/articles.json';
 const mdFolderPath = 'data/md';
 
+/**
+ * 处理文章创建的 POST 请求
+ * @param {Request} request - 包含文章信息的请求对象
+ * @returns {Promise<NextResponse>} 创建结果的响应
+ */
 export async function POST(request) {
   const { title, description, content, slug } = await request.json();
 
@@ -61,7 +66,10 @@ export async function POST(request) {
   }
 }
 
-
+/**
+ * 同步文章列表
+ * 获取所有 Markdown 文件并更新 articles.json
+ */
 async function syncArticles() {
   try {
     // Fetch all MD files

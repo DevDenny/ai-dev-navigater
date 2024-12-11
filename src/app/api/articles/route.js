@@ -11,6 +11,12 @@ const repo = process.env.GITHUB_REPO;
 const articlesJsonPath = 'data/json/articles.json';
 const mdFolderPath = 'data/md';
 
+/**
+ * GET 请求处理函数
+ * 支持两种模式：
+ * 1. 获取单篇文章（带 path 参数）
+ * 2. 获取所有文章列表（不带参数或带 sync 参数）
+ */
 export async function GET(request) {
   const { searchParams } = new URL(request.url);
   const sync = searchParams.get('sync');
@@ -18,14 +24,16 @@ export async function GET(request) {
 
   try {
     if (path) {
-      // Fetch single article
+      // 获取单篇文章的逻辑
       try {
+        // 从 GitHub 获取文件内容
         const { data } = await octokit.repos.getContent({
           owner,
           repo,
           path: decodeURIComponent(path),
         });
 
+        // 解码文件内容并解析 frontmatter
         const content = Buffer.from(data.content, 'base64').toString('utf8');
         const { data: frontMatter, content: articleContent } = matter(content);
 
@@ -38,16 +46,21 @@ export async function GET(request) {
         console.error('Error fetching article:', error);
         return NextResponse.json({ error: 'Failed to fetch article' }, { status: 500 });
       }
-    } else if (sync === 'true') {
+    }
+
+    // 如果请求包含 sync 参数，先同步文章
+    if (sync === 'true') {
       await syncArticles();
     }
 
+    // 获取文章索引文件
     const { data } = await octokit.repos.getContent({
       owner,
       repo,
       path: articlesJsonPath,
     });
 
+    // 解码并解析文章列表
     const content = Buffer.from(data.content, 'base64').toString('utf8');
     const articles = JSON.parse(content);
 

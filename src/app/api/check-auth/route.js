@@ -1,9 +1,15 @@
 import { NextResponse } from 'next/server';
-import { verifyToken } from '@/lib/auth';
 
 export async function GET(request) {
-  const token = request.cookies.get('auth_token')?.value;
-  const isLoggedIn = token ? verifyToken(token) : false;
+  console.log('Checking auth status...');
+  
+  // 获取 session cookie
+  const sessionCookie = request.cookies.get('session');
+  console.log('Session cookie:', sessionCookie);
 
-  return NextResponse.json({ isLoggedIn });
+  if (sessionCookie?.value === 'authenticated') {
+    return NextResponse.json({ isLoggedIn: true });
+  }
+
+  return NextResponse.json({ isLoggedIn: false });
 }

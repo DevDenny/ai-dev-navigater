@@ -1,52 +1,76 @@
-'use client'
+'use client';
 
 import { useState } from 'react';
 import { useRouter } from 'next/navigation';
 
 export default function LoginPage() {
   const [password, setPassword] = useState('');
+  const [error, setError] = useState('');
+  const [isLoading, setIsLoading] = useState(false);
   const router = useRouter();
 
   const handleSubmit = async (e) => {
     e.preventDefault();
-    const response = await fetch('/api/login', {
-      method: 'POST',
-      headers: { 'Content-Type': 'application/json' },
-      body: JSON.stringify({ password }),
-    });
+    setError('');
+    setIsLoading(true);
 
-    if (response.ok) {
-      router.push('/admin');
-    } else {
-      alert('Invalid password');
+    try {
+      const loginResponse = await fetch('/api/login', {
+        method: 'POST',
+        headers: {
+          'Content-Type': 'application/json',
+        },
+        body: JSON.stringify({ password }),
+        credentials: 'include'
+      });
+
+      const loginData = await loginResponse.json();
+
+      if (loginResponse.ok) {
+        router.push('/admin');
+      } else {
+        setError(loginData.error || 'Login failed');
+      }
+    } catch (error) {
+      console.error('Login error:', error);
+      setError('An error occurred during login');
+    } finally {
+      setIsLoading(false);
     }
   };
 
   return (
-    <div className="flex justify-center items-center h-screen">
-      <form onSubmit={handleSubmit} className="bg-white shadow-md rounded px-8 pt-6 pb-8 mb-4">
-        <div className="mb-4">
-          <label className="block text-gray-700 text-sm font-bold mb-2" htmlFor="password">
-            Password
-          </label>
+    <div className="flex min-h-screen items-center justify-center">
+      <div className="w-full max-w-md space-y-8 p-8">
+        <div className="text-center">
+          <h1 className="text-2xl font-bold">Admin Login</h1>
+        </div>
+
+        <form onSubmit={handleSubmit} className="space-y-4">
           <input
-            className="shadow appearance-none border rounded w-full py-2 px-3 text-gray-700 leading-tight focus:outline-none focus:shadow-outline"
-            id="password"
             type="password"
-            placeholder="Enter password"
             value={password}
             onChange={(e) => setPassword(e.target.value)}
+            placeholder="Enter password"
+            required
+            className="w-full px-4 py-2 border rounded-md"
           />
-        </div>
-        <div className="flex items-center justify-between">
+
+          {error && (
+            <div className="text-red-500 text-sm">
+              {error}
+            </div>
+          )}
+
           <button
-            className="bg-blue-500 hover:bg-blue-700 text-white font-bold py-2 px-4 rounded focus:outline-none focus:shadow-outline"
             type="submit"
+            disabled={isLoading}
+            className="w-full px-4 py-2 text-white bg-blue-600 rounded-md hover:bg-blue-700 disabled:bg-blue-400"
           >
-            Sign In
+            {isLoading ? 'Logging in...' : 'Login'}
           </button>
-        </div>
-      </form>
+        </form>
+      </div>
     </div>
   );
 }

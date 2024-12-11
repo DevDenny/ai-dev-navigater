@@ -1,26 +1,36 @@
 import { NextResponse } from 'next/server';
-import { createToken } from '@/lib/auth';
 
 export async function POST(request) {
-  const { password } = await request.json();
-  
-  if (password === process.env.ACCESS_PASSWORD) {
-    const token = createToken();
-    
-    const response = NextResponse.json({ message: 'Login successful' }, { status: 200 });
+  try {
+    const { password } = await request.json();
 
-    response.cookies.set({
-      name: 'auth_token',
-      value: token,
-      httpOnly: true,
-      secure: process.env.NODE_ENV === 'production',
-      sameSite: 'strict',
-      maxAge: 3600, // 1 hour
-      path: '/',
-    });
+    if (password === process.env.ACCESS_PASSWORD) {
+      const response = NextResponse.json({
+        success: true,
+        message: 'Login successful'
+      });
 
-    return response;
-  } else {
-    return NextResponse.json({ message: 'Invalid password' }, { status: 401 });
+      // 设置认证 cookie
+      response.cookies.set('auth_token', 'authenticated', {
+        httpOnly: true,
+        secure: process.env.NODE_ENV === 'production',
+        sameSite: 'lax',
+        path: '/',
+        maxAge: 60 * 60 * 24 // 24 hours
+      });
+
+      return response;
+    }
+
+    return NextResponse.json(
+      { error: 'Invalid password' },
+      { status: 401 }
+    );
+  } catch (error) {
+    console.error('Login error:', error);
+    return NextResponse.json(
+      { error: 'Internal server error' },
+      { status: 500 }
+    );
   }
 }

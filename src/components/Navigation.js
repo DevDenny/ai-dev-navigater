@@ -57,7 +57,7 @@ export function Navigation() {
       <div className="container flex h-16 items-center justify-between">
         <div className="flex gap-6 md:gap-10">
           <Link href="/" className="flex items-center space-x-2">
-            <span className="inline-block font-bold">GitBase</span>
+            <span className="inline-block font-bold">CodeAI Hub</span>
           </Link>
           <nav className="hidden md:flex gap-6">
             {navItems.map((item) => (

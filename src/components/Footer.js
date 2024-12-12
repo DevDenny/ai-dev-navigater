@@ -9,7 +9,7 @@ export function Footer() {
           <div>
             <h3 className="text-sm font-semibold text-gray-600 tracking-wider uppercase">About</h3>
             <p className="mt-4 text-base text-gray-500">
-              GitBase is an open-source dynamic website solution without a traditional database, built with Next.js and powered by GitHub.
+             CodeAI Hub 是一个专注于 AI 编程领域的知识分享平台，汇集了AI coding前沿技术的精选内容。
             </p>
           </div>
           <div>

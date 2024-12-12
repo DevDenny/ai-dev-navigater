@@ -7,31 +7,32 @@ import {
   CardDescription,
 } from "@/components/ui/card"
 
-export default function ArticleList({ articles, showMoreLink = true }) {
+export default function ArticleList({ articles }) {
   return (
-    <section>
-      <div className="flex justify-between items-center mb-6">
-        <h2 className="text-3xl font-bold tracking-tighter">Articles</h2>
-        {showMoreLink && (
-          <Link href="/posts" className="text-blue-600 hover:text-blue-800 transition-colors">
-            More articles →
-          </Link>
-        )}
+    <section className="space-y-4">
+      <div className="flex justify-between items-center">
+        <h2 className="text-text-dark text-2xl font-bold">最新文章</h2>
+        <Link href="/posts" className="text-primary hover:text-primary/80">
+          更多...
+        </Link>
       </div>
-      <div className="space-y-6">
-        {articles.map(({ id, title, description }) => (
-          <Card key={id}>
-            <CardHeader>
-              <Link 
-                href={`/posts/${id}`}
-                className="text-blue-600 hover:text-blue-800 transition-colors inline-flex items-center gap-1"
-              >
-                <CardTitle>{title}</CardTitle>
-                →
-              </Link>
-              <CardDescription>{description}</CardDescription>
-            </CardHeader>
-          </Card>
+      <div className="grid gap-4 md:grid-cols-2 lg:grid-cols-3">
+        {articles.map((article) => (
+          <Link
+            key={article.id}
+            href={`/posts/${article.id}`}
+          >
+            <Card className="bg-background-secondary hover:bg-primary-lighter transition-all duration-300 ease-in-out hover:-translate-y-1 hover:shadow-lg">
+              <CardHeader className="space-y-3">
+                <CardTitle className="text-primary leading-7 line-clamp-2">
+                  {article.title}
+                </CardTitle>
+                <CardDescription className="text-text-default line-clamp-3">
+                  {article.description}
+                </CardDescription>
+              </CardHeader>
+            </Card>
+          </Link>
         ))}
       </div>
     </section>

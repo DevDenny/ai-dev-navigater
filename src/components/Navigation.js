@@ -3,7 +3,6 @@
 import { useState, useEffect } from 'react'
 import Link from 'next/link'
 import { usePathname, useRouter } from 'next/navigation'
-import { Github } from 'lucide-react'
 import { cn } from "@/lib/utils"
 import { Button } from "@/components/ui/button"
 
@@ -75,26 +74,27 @@ export function Navigation() {
           </nav>
         </div>
         <div className="flex items-center gap-4">
-          <Link
-            href="https://github.com/qiayue/gitbase"
-            target="_blank"
-            rel="noopener noreferrer"
-            className="text-muted-foreground hover:text-foreground"
-          >
-            <Github className="h-5 w-5" />
-            <span className="sr-only">GitHub</span>
-          </Link>
           {!isLoading && (
             isLoggedIn ? (
               <>
                 <Link href="/admin">
-                  <Button variant="ghost">Admin</Button>
+                  <Button variant="ghost" className="text-primary hover:text-primary/80">
+                    Admin
+                  </Button>
                 </Link>
-                <Button onClick={handleLogout} variant="outline">Logout</Button>
+                <Button 
+                  onClick={handleLogout} 
+                  variant="outline"
+                  className="text-primary hover:text-primary/80"
+                >
+                  Logout
+                </Button>
               </>
             ) : (
               <Link href="/login">
-                <Button>Login</Button>
+                <Button className="bg-primary text-white hover:bg-primary/90">
+                  Login
+                </Button>
               </Link>
             )
           )}

@@ -22,10 +22,15 @@ const config = {
         border: "hsl(var(--border))",
         input: "hsl(var(--input))",
         ring: "hsl(var(--ring))",
-        background: "hsl(var(--background))",
+        background: {
+          DEFAULT: '#FFFFFF',
+          secondary: '#F8FAFC',
+        },
         foreground: "hsl(var(--foreground))",
         primary: {
-          DEFAULT: "hsl(var(--primary))",
+          DEFAULT: '#0066CC',
+          light: '#3399FF',
+          lighter: '#E6F3FF',
           foreground: "hsl(var(--primary-foreground))",
         },
         secondary: {
@@ -41,6 +46,8 @@ const config = {
           foreground: "hsl(var(--muted-foreground))",
         },
         accent: {
+          blue: '#0066CC',
+          hover: '#005AB8',
           DEFAULT: "hsl(var(--accent))",
           foreground: "hsl(var(--accent-foreground))",
         },
@@ -51,6 +58,11 @@ const config = {
         card: {
           DEFAULT: "hsl(var(--card))",
           foreground: "hsl(var(--card-foreground))",
+        },
+        text: {
+          DEFAULT: '#4A5568',
+          dark: '#1A1A1A',
+          light: '#718096',
         },
       },
       borderRadius: {

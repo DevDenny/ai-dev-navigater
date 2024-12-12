@@ -2,17 +2,20 @@ import { NextResponse } from 'next/server';
 
 export function middleware(request) {
   const authToken = request.cookies.get('auth_token');
+  
+  // 调试日志
+  console.log('Middleware checking path:', request.nextUrl.pathname);
+  console.log('Auth token:', authToken?.value);
 
-  // 如果是管理路由
+  // 需要保护的路由
   if (request.nextUrl.pathname.startsWith('/admin')) {
-    if (!authToken?.value) {
+    if (authToken?.value !== 'authenticated') {
       return NextResponse.redirect(new URL('/login', request.url));
     }
-    return NextResponse.next();
   }
 
-  // 如果是登录页面且已经有token
-  if (request.nextUrl.pathname === '/login' && authToken?.value) {
+  // 已登录用户访问登录页面时重定向到管理页面
+  if (request.nextUrl.pathname === '/login' && authToken?.value === 'authenticated') {
     return NextResponse.redirect(new URL('/admin', request.url));
   }
 

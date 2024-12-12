@@ -13,8 +13,10 @@ export default function LoginPage() {
     e.preventDefault();
     setError('');
     setIsLoading(true);
+    console.log('Login attempt started');
 
     try {
+      console.log('Sending login request');
       const loginResponse = await fetch('/api/login', {
         method: 'POST',
         headers: {
@@ -25,10 +27,15 @@ export default function LoginPage() {
       });
 
       const loginData = await loginResponse.json();
+      console.log('Login response received:', loginResponse.status);
 
       if (loginResponse.ok) {
-        router.push('/admin');
+        console.log('Login successful, attempting navigation');
+        setTimeout(() => {
+          router.push('/admin');
+        }, 100);
       } else {
+        console.log('Login failed:', loginData.error);
         setError(loginData.error || 'Login failed');
       }
     } catch (error) {

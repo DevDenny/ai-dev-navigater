@@ -1,15 +1,19 @@
 import { NextResponse } from 'next/server';
+import { cookies } from 'next/headers';
 
-export async function GET(request) {
-  console.log('Checking auth status...');
-  
-  // 获取 session cookie
-  const sessionCookie = request.cookies.get('session');
-  console.log('Session cookie:', sessionCookie);
+export async function GET() {
+  try {
+    const cookieStore = cookies();
+    const authToken = cookieStore.get('auth_token');
+    
+    console.log('Checking auth status...');
+    console.log('Session cookie:', authToken?.value);
 
-  if (sessionCookie?.value === 'authenticated') {
-    return NextResponse.json({ isLoggedIn: true });
+    return NextResponse.json({
+      isLoggedIn: authToken?.value === 'authenticated'
+    });
+  } catch (error) {
+    console.error('Auth check error:', error);
+    return NextResponse.json({ isLoggedIn: false });
   }
-
-  return NextResponse.json({ isLoggedIn: false });
 }

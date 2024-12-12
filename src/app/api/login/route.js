@@ -10,7 +10,7 @@ export async function POST(request) {
         message: 'Login successful'
       });
 
-      // 设置认证 cookie
+      // 修改 cookie 设置
       response.cookies.set('auth_token', 'authenticated', {
         httpOnly: true,
         secure: process.env.NODE_ENV === 'production',

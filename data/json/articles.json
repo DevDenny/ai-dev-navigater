@@ -40,5 +40,19 @@
     "date": "2024-08-11T13:16:44.231Z",
     "lastModified": "2024-12-09T11:48:18Z",
     "path": "data/md/managing-articles.md"
+  },
+  {
+    "title": "test pic and text",
+    "description": "test pic and text",
+    "date": "2024-12-13T01:09:51.730Z",
+    "lastModified": "2024-12-13T01:09:52Z",
+    "path": "data/md/test-pic-and-text.md"
+  },
+  {
+    "title": "test",
+    "description": "test",
+    "date": "2024-12-12T01:33:49.068Z",
+    "lastModified": "2024-12-13T01:07:20Z",
+    "path": "data/md/test.md"
   }
 ]

@@ -1,7 +1,9 @@
 ---
 title: test pic and text
 description: test pic and text
-date: '2024-12-13T01:09:51.730Z'
+date: '2024-12-13'
+category: test
+categoryName: 教程
 ---
 # 环境安装与搭建
 ## 安装Node

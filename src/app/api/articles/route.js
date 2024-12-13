@@ -72,19 +72,55 @@ export async function GET(request) {
 }
 
 export async function POST(request) {
-  const { article } = await request.json();
-
   try {
-    // Update the MD file
-    await updateMdFile(article);
+    const { article } = await request.json();
+    const { title, description, content, category, path } = article;
 
-    // Sync articles
+    // 获取分类信息
+    const { data: categoriesFile } = await octokit.repos.getContent({
+      owner,
+      repo,
+      path: 'data/json/categories.json',
+    });
+
+    const categories = JSON.parse(Buffer.from(categoriesFile.content, 'base64').toString('utf8'));
+    const categoryInfo = categories.find(cat => cat.slug === category);
+    
+    // 构建文章内容，包含 frontmatter
+    const fileContent = matter.stringify(content, {
+      title,
+      description,
+      date: new Date().toISOString().split('T')[0],
+      category: category || '', // 保存分类的 slug
+      categoryName: categoryInfo?.name || '', // 额外保存分类的 name
+    });
+
+    let currentSha;
+    if (path) {
+      const { data: currentFile } = await octokit.repos.getContent({
+        owner,
+        repo,
+        path: path,
+      });
+      currentSha = currentFile.sha;
+    }
+
+    await octokit.repos.createOrUpdateFileContents({
+      owner,
+      repo,
+      path: path || `data/md/${generateSlug(title)}.md`,
+      message: path ? `Update article: ${title}` : `Add article: ${title}`,
+      content: Buffer.from(fileContent).toString('base64'),
+      ...(currentSha && { sha: currentSha }),
+    });
+
+    // 同步文章列表
     await syncArticles();
 
-    return NextResponse.json({ message: 'Article updated successfully' });
+    return NextResponse.json({ success: true });
   } catch (error) {
-    console.error('Error updating article:', error);
-    return NextResponse.json({ error: 'Failed to update article' }, { status: 500 });
+    console.error('Error saving article:', error);
+    return NextResponse.json({ error: 'Failed to save article' }, { status: 500 });
   }
 }
 

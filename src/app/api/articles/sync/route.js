@@ -8,70 +8,20 @@ const octokit = new Octokit({
 
 const owner = process.env.GITHUB_OWNER;
 const repo = process.env.GITHUB_REPO;
-const articlesJsonPath = 'data/json/articles.json';
 const mdFolderPath = 'data/md';
+const articlesJsonPath = 'data/json/articles.json';
 
-/**
- * 处理文章创建的 POST 请求
- * @param {Request} request - 包含文章信息的请求对象
- * @returns {Promise<NextResponse>} 创建结果的响应
- */
-export async function POST(request) {
-  const { title, description, content, slug } = await request.json();
-
-  // Validate slug
-  if (!/^[a-z0-9]+(?:-[a-z0-9]+)*$/.test(slug)) {
-    return NextResponse.json({ error: 'Invalid slug format' }, { status: 400 });
-  }
-
-  const path = `data/md/${slug}.md`;
-
+export async function POST() {
   try {
-    // Check if file already exists
-    try {
-      await octokit.repos.getContent({
-        owner,
-        repo,
-        path,
-      });
-      return NextResponse.json({ error: 'Article with this slug already exists' }, { status: 400 });
-    } catch (error) {
-      if (error.status !== 404) {
-        throw error;
-      }
-    }
-
-    // Create new file
-    const fileContent = matter.stringify(content, {
-      title,
-      description,
-      date: new Date().toISOString(),
-    });
-
-    await octokit.repos.createOrUpdateFileContents({
+    // 首先获取分类列表
+    const { data: categoriesFile } = await octokit.repos.getContent({
       owner,
       repo,
-      path,
-      message: `Create new article: ${title}`,
-      content: Buffer.from(fileContent).toString('base64'),
+      path: 'data/json/categories.json',
     });
 
-    // Sync articles
-    await syncArticles();
+    const categories = JSON.parse(Buffer.from(categoriesFile.content, 'base64').toString('utf8'));
 
-    return NextResponse.json({ message: 'Article created successfully' });
-  } catch (error) {
-    console.error('Error creating article:', error);
-    return NextResponse.json({ error: 'Failed to create article' }, { status: 500 });
-  }
-}
-
-/**
- * 同步文章列表
- * 获取所有 Markdown 文件并更新 articles.json
- */
-async function syncArticles() {
-  try {
     // Fetch all MD files
     const { data: files } = await octokit.repos.getContent({
       owner,
@@ -91,6 +41,10 @@ async function syncArticles() {
       const content = Buffer.from(data.content, 'base64').toString('utf8');
       const { data: frontMatter } = matter(content);
 
+      // 获取分类信息
+      const categorySlug = frontMatter.category || '';
+      const categoryInfo = categories.find(cat => cat.slug === categorySlug);
+
       // Fetch the last commit for this file
       const { data: commits } = await octokit.repos.listCommits({
         owner,
@@ -101,12 +55,12 @@ async function syncArticles() {
 
       const lastModified = commits[0]?.commit.committer.date || data.sha;
 
-      // 确保所有需要的字段都被包含
       return {
         title: frontMatter.title || '',
         description: frontMatter.description || '',
         date: frontMatter.date || '',
-        category: frontMatter.category || '', // 确保分类信息被包含
+        category: categorySlug, // 保存分类的 slug
+        categoryName: categoryInfo?.name || '', // 保存分类的显示名称
         lastModified: lastModified,
         path: file.path,
       };
@@ -139,9 +93,12 @@ async function syncArticles() {
       ...(currentSha && { sha: currentSha }),
     });
 
-    return sortedArticles;
+    return NextResponse.json({ success: true, articles: sortedArticles });
   } catch (error) {
     console.error('Error syncing articles:', error);
-    throw error;
+    return NextResponse.json(
+      { error: 'Failed to sync articles' },
+      { status: 500 }
+    );
   }
-}
+} 

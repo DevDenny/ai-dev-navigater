@@ -6,6 +6,13 @@ import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Textarea } from "@/components/ui/textarea";
 import { Alert } from "@/components/ui/alert";
+import {
+  Select,
+  SelectContent,
+  SelectItem,
+  SelectTrigger,
+  SelectValue,
+} from "@/components/ui/select";
 
 /**
  * 文章编辑器组件
@@ -17,15 +24,34 @@ export default function ArticleEditor() {
     title: '', 
     description: '', 
     content: '', 
-    path: '' 
+    path: '',
+    category: ''
   });
+  const [categories, setCategories] = useState([]);
   const [isLoading, setIsLoading] = useState(true);
   const [error, setError] = useState(null);
   const searchParams = useSearchParams();
   const path = searchParams.get('path');
 
-  // 组件加载时获取文章内容
+  // 组件加载时获取文章内容和分类列表
   useEffect(() => {
+    // 获取分类列表
+    const fetchCategories = async () => {
+      try {
+        const response = await fetch('/api/categories');
+        if (!response.ok) {
+          throw new Error('Failed to fetch categories');
+        }
+        const data = await response.json();
+        setCategories(data);
+      } catch (error) {
+        console.error('Error fetching categories:', error);
+        setError('Failed to load categories');
+      }
+    };
+
+    fetchCategories();
+
     if (path) {
       fetchArticle(decodeURIComponent(path));
     } else {
@@ -63,6 +89,14 @@ export default function ArticleEditor() {
   const handleInputChange = (e) => {
     const { name, value } = e.target;
     setArticle({ ...article, [name]: value });
+  };
+
+  /**
+   * 添加分类选择处理函数
+   * @param {string} value - 选择的分类值
+   */
+  const handleCategoryChange = (value) => {
+    setArticle({ ...article, category: value });
   };
 
   /**
@@ -114,6 +148,22 @@ export default function ArticleEditor() {
         onChange={handleInputChange}
         placeholder="Article Description"
       />
+      
+      <Select
+        value={article.category}
+        onValueChange={handleCategoryChange}
+      >
+        <SelectTrigger>
+          <SelectValue placeholder="Select Category" />
+        </SelectTrigger>
+        <SelectContent>
+          {categories.map((category) => (
+            <SelectItem key={category.slug} value={category.slug}>
+              {category.name}
+            </SelectItem>
+          ))}
+        </SelectContent>
+      </Select>
       
       <Textarea
         name="content"

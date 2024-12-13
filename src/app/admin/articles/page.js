@@ -1,56 +1,51 @@
 'use client';
 
-import { useState, useEffect, useCallback } from 'react';
-import { useRouter } from 'next/navigation';
 import Link from 'next/link';
+import { useEffect, useState } from 'react';
 import { Button } from "@/components/ui/button";
-import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from "@/components/ui/table";
+import { Badge } from "@/components/ui/badge";
+import {
+  Table,
+  TableBody,
+  TableCell,
+  TableHead,
+  TableHeader,
+  TableRow,
+} from "@/components/ui/table";
 
 export default function AdminArticlesPage() {
   const [articles, setArticles] = useState([]);
   const [isLoading, setIsLoading] = useState(true);
   const [error, setError] = useState(null);
-  const router = useRouter();
 
-  const checkAuth = useCallback(async () => {
-    try {
-      const response = await fetch('/api/check-auth');
-      const data = await response.json();
-      if (!data.isLoggedIn) {
-        router.push('/login');
-      }
-    } catch (error) {
-      console.error('Error checking auth:', error);
-      router.push('/login');
-    }
-  }, [router]);
+  useEffect(() => {
+    fetchArticles();
+  }, []);
 
-  const fetchArticles = useCallback(async (sync = false) => {
-    setIsLoading(true);
-    setError(null);
+  const fetchArticles = async () => {
     try {
-      const response = await fetch(`/api/articles${sync ? '?sync=true' : ''}`);
-      if (!response.ok) {
-        throw new Error('Failed to fetch articles');
-      }
+      const response = await fetch('/api/articles');
+      if (!response.ok) throw new Error('Failed to fetch articles');
       const data = await response.json();
       setArticles(data);
     } catch (error) {
-      console.error('Error fetching articles:', error);
-      setError('Failed to fetch articles. Please try again.');
+      console.error('Error:', error);
+      setError('Failed to load articles');
     } finally {
       setIsLoading(false);
     }
-  }, []);
+  };
 
-  useEffect(() => {
-    checkAuth();
-    fetchArticles();
-  }, [checkAuth, fetchArticles]);
-
-  const handleSync = useCallback(() => {
-    fetchArticles(true);
-  }, [fetchArticles]);
+  const handleSync = async () => {
+    try {
+      const response = await fetch('/api/articles/sync', { method: 'POST' });
+      if (!response.ok) throw new Error('Failed to sync articles');
+      await fetchArticles();
+    } catch (error) {
+      console.error('Error:', error);
+      alert('Failed to sync articles');
+    }
+  };
 
   if (isLoading) return <div className="container mx-auto p-4">Loading...</div>;
   if (error) return <div className="container mx-auto p-4">Error: {error}</div>;
@@ -74,6 +69,7 @@ export default function AdminArticlesPage() {
           <TableRow>
             <TableHead>Title</TableHead>
             <TableHead>Description</TableHead>
+            <TableHead>Category</TableHead>
             <TableHead>Created</TableHead>
             <TableHead>Last Modified</TableHead>
             <TableHead>Actions</TableHead>
@@ -84,6 +80,13 @@ export default function AdminArticlesPage() {
             <TableRow key={index}>
               <TableCell>{article.title}</TableCell>
               <TableCell>{article.description}</TableCell>
+              <TableCell>
+                {article.categoryName && (
+                  <Badge variant="secondary">
+                    {article.categoryName}
+                  </Badge>
+                )}
+              </TableCell>
               <TableCell>{new Date(article.date).toLocaleDateString()}</TableCell>
               <TableCell>{new Date(article.lastModified).toLocaleString()}</TableCell>
               <TableCell>

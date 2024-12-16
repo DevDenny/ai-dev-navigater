@@ -3,7 +3,6 @@ title: test pic and text
 description: test pic and text
 date: '2024-12-16'
 category: ''
-categoryName: ''
 ---
 # 环境安装与搭建
 ## 安装Node

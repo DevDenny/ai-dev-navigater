@@ -1,9 +1,8 @@
 ---
 title: test pic and text
 description: test pic and text
-date: '2024-12-13'
-category: test
-categoryName: 教程
+date: '2024-12-16'
+category: ''
 ---
 # 环境安装与搭建
 ## 安装Node
@@ -43,3 +42,4 @@ npm install typescript -g
 npm install -g ts-node
 ```
 解决编码调试过程中，直接ts-node tsDemo.ts 运行代码，省去tsc tsDemo.ts过程。
+![图片](https://raw.githubusercontent.com/DevDenny/ai-dev-navigater/main/uploads/images/1734313736563_3cvk7m.png)

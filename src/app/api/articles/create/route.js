@@ -41,8 +41,14 @@ export async function POST(request) {
       }
     }
 
+    // 处理 markdown 中的图片路径
+    const processedContent = content.replace(
+      /!\[([^\]]*)\]\(\/uploads\/images\/([^)]+)\)/g,
+      '![$1](/uploads/images/$2)'
+    );
+
     // Create new file
-    const fileContent = matter.stringify(content, {
+    const fileContent = matter.stringify(processedContent, {
       title,
       description,
       date: new Date().toISOString(),

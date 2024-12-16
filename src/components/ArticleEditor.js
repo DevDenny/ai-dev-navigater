@@ -1,182 +1,165 @@
 'use client';
 
-import { useState, useEffect } from 'react';
-import { useSearchParams } from 'next/navigation';
-import { Button } from "@/components/ui/button";
-import { Input } from "@/components/ui/input";
-import { Textarea } from "@/components/ui/textarea";
-import { Alert } from "@/components/ui/alert";
-import {
-  Select,
-  SelectContent,
-  SelectItem,
-  SelectTrigger,
-  SelectValue,
-} from "@/components/ui/select";
+import { useState, useEffect, useRef } from 'react';
+import { marked } from 'marked';
+import DOMPurify from 'dompurify';
+import ImageUploader from './ImageUploader';
 
-/**
- * 文章编辑器组件
- * 支持文章的加载、编辑和保存功能
- */
-export default function ArticleEditor() {
-  // 状态管理
-  const [article, setArticle] = useState({ 
-    title: '', 
-    description: '', 
-    content: '', 
-    path: '',
-    category: ''
+export default function ArticleEditor({ article: initialArticle, onSubmit }) {
+  const [article, setArticle] = useState({
+    title: '',
+    description: '',
+    content: '',
+    slug: ''
   });
-  const [categories, setCategories] = useState([]);
-  const [isLoading, setIsLoading] = useState(true);
-  const [error, setError] = useState(null);
-  const searchParams = useSearchParams();
-  const path = searchParams.get('path');
 
-  // 组件加载时获取文章内容和分类列表
+  const editorRef = useRef(null);
+  const previewRef = useRef(null);
+  const [isEditorScrolling, setIsEditorScrolling] = useState(false);
+  const [isPreviewScrolling, setIsPreviewScrolling] = useState(false);
+
   useEffect(() => {
-    // 获取分类列表
-    const fetchCategories = async () => {
-      try {
-        const response = await fetch('/api/categories');
-        if (!response.ok) {
-          throw new Error('Failed to fetch categories');
-        }
-        const data = await response.json();
-        setCategories(data);
-      } catch (error) {
-        console.error('Error fetching categories:', error);
-        setError('Failed to load categories');
-      }
-    };
-
-    fetchCategories();
-
-    if (path) {
-      fetchArticle(decodeURIComponent(path));
-    } else {
-      setError('No article path provided');
-      setIsLoading(false);
-    }
-  }, [path]);
-
-  /**
-   * 从服务器获取文章内容
-   * @param {string} articlePath - 文章路径
-   */
-  const fetchArticle = async (articlePath) => {
-    setIsLoading(true);
-    setError(null);
-    try {
-      const response = await fetch(`/api/articles?path=${encodeURIComponent(articlePath)}`);
-      if (!response.ok) {
-        throw new Error('Failed to fetch article');
-      }
-      const data = await response.json();
-      setArticle(data);
-    } catch (error) {
-      console.error('Error fetching article:', error);
-      setError('Failed to load article. Please try again.');
-    } finally {
-      setIsLoading(false);
-    }
-  };
-
-  /**
-   * 处理输入字段变化
-   * @param {Event} e - 输入事件对象
-   */
-  const handleInputChange = (e) => {
-    const { name, value } = e.target;
-    setArticle({ ...article, [name]: value });
-  };
-
-  /**
-   * 添加分类选择处理函数
-   * @param {string} value - 选择的分类值
-   */
-  const handleCategoryChange = (value) => {
-    setArticle({ ...article, category: value });
-  };
-
-  /**
-   * 保存文章到服务器
-   */
-  const handleSave = async () => {
-    try {
-      const response = await fetch('/api/articles', {
-        method: 'POST',
-        headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({ article }),
+    if (initialArticle) {
+      setArticle({
+        title: initialArticle.title || '',
+        description: initialArticle.description || '',
+        content: initialArticle.content || '',
+        slug: initialArticle.slug || ''
       });
+    }
+  }, [initialArticle]);
+
+  const handleEditorScroll = (e) => {
+    if (!isPreviewScrolling && editorRef.current && previewRef.current) {
+      setIsEditorScrolling(true);
       
-      if (!response.ok) {
-        throw new Error('Failed to save article');
+      const editor = editorRef.current;
+      const preview = previewRef.current;
+      
+      const editorScrollPercent = editor.scrollTop / (editor.scrollHeight - editor.clientHeight);
+      
+      if (editorScrollPercent >= 1) {
+        preview.scrollTop = preview.scrollHeight - preview.clientHeight;
+      } else {
+        preview.scrollTop = editorScrollPercent * (preview.scrollHeight - preview.clientHeight);
       }
       
-      alert('Article saved successfully');
-    } catch (error) {
-      console.error('Error saving article:', error);
-      setError('Failed to save article. Please try again.');
+      setTimeout(() => setIsEditorScrolling(false), 50);
     }
   };
 
-  // 加载状态显示
-  if (isLoading) {
-    return <div>Loading...</div>;
-  }
+  const handlePreviewScroll = (e) => {
+    if (!isEditorScrolling && editorRef.current && previewRef.current) {
+      setIsPreviewScrolling(true);
+      
+      const editor = editorRef.current;
+      const preview = previewRef.current;
+      
+      const previewScrollPercent = preview.scrollTop / (preview.scrollHeight - preview.clientHeight);
+      
+      if (previewScrollPercent < 1) {
+        editor.scrollTop = previewScrollPercent * (editor.scrollHeight - editor.clientHeight);
+      } else {
+        editor.scrollTop = editor.scrollHeight - editor.clientHeight;
+      }
+      
+      setTimeout(() => setIsPreviewScrolling(false), 50);
+    }
+  };
 
-  // 错误状态显示
-  if (error) {
-    return <Alert variant="destructive">{error}</Alert>;
-  }
+  const markdownToHtml = (markdown) => {
+    try {
+      const html = marked(markdown || '');
+      return DOMPurify.sanitize(html);
+    } catch (error) {
+      console.error('Markdown conversion error:', error);
+      return '';
+    }
+  };
 
-  // 渲染编辑表单
+  const handleImageUpload = (imageUrl) => {
+    const imageMarkdown = `![图片](${imageUrl})`;
+    setArticle(prev => ({
+      ...prev,
+      content: prev.content + '\n' + imageMarkdown
+    }));
+  };
+
+  const handleSubmit = async (e) => {
+    e.preventDefault();
+    if (onSubmit) {
+      await onSubmit(article);
+    }
+  };
+
   return (
     <div className="space-y-4">
-      <Input
-        name="title"
-        value={article.title}
-        onChange={handleInputChange}
-        placeholder="Article Title"
-        className="text-xl font-bold"
-      />
-      
-      <Input
-        name="description"
-        value={article.description}
-        onChange={handleInputChange}
-        placeholder="Article Description"
-      />
-      
-      <Select
-        value={article.category}
-        onValueChange={handleCategoryChange}
-      >
-        <SelectTrigger>
-          <SelectValue placeholder="Select Category" />
-        </SelectTrigger>
-        <SelectContent>
-          {categories.map((category) => (
-            <SelectItem key={category.slug} value={category.slug}>
-              {category.name}
-            </SelectItem>
-          ))}
-        </SelectContent>
-      </Select>
-      
-      <Textarea
-        name="content"
-        value={article.content}
-        onChange={handleInputChange}
-        placeholder="Article Content (Markdown)"
-        rows={20}
-        className="font-mono"
-      />
-      
-      <Button onClick={handleSave}>
-        Save Article
-      </Button>
+      <div className="grid gap-4">
+        <div>
+          <label className="block text-sm font-medium mb-1">标题</label>
+          <input
+            type="text"
+            value={article.title}
+            onChange={(e) => setArticle(prev => ({ ...prev, title: e.target.value }))}
+            className="w-full p-2 border rounded"
+          />
+        </div>
+        
+        <div>
+          <label className="block text-sm font-medium mb-1">描述</label>
+          <input
+            type="text"
+            value={article.description}
+            onChange={(e) => setArticle(prev => ({ ...prev, description: e.target.value }))}
+            className="w-full p-2 border rounded"
+          />
+        </div>
+
+        <div>
+          <label className="block text-sm font-medium mb-1">Slug</label>
+          <input
+            type="text"
+            value={article.slug}
+            onChange={(e) => setArticle(prev => ({ ...prev, slug: e.target.value }))}
+            className="w-full p-2 border rounded"
+          />
+        </div>
+      </div>
+
+      <div className="grid grid-cols-2 gap-4 h-[calc(100vh-250px)]">
+        <div className="flex flex-col h-full">
+          <label className="block text-sm font-medium mb-2">内容</label>
+          <div className="relative flex-1">
+            <textarea
+              ref={editorRef}
+              value={article.content}
+              onChange={(e) => setArticle(prev => ({ ...prev, content: e.target.value }))}
+              onScroll={handleEditorScroll}
+              className="absolute inset-0 w-full h-full p-4 border rounded font-mono resize-none"
+              placeholder="支持 Markdown 格式"
+            />
+          </div>
+          <div className="mt-2 flex items-center gap-4">
+            <ImageUploader onUploadSuccess={handleImageUpload} />
+            <button
+              onClick={handleSubmit}
+              className="px-4 py-2 bg-primary text-white rounded hover:bg-primary/90"
+            >
+              保存文章
+            </button>
+          </div>
+        </div>
+
+        <div className="flex flex-col h-full">
+          <label className="block text-sm font-medium mb-2">预览</label>
+          <div 
+            ref={previewRef}
+            onScroll={handlePreviewScroll}
+            className="flex-1 overflow-auto p-4 border rounded bg-white prose max-w-none"
+            dangerouslySetInnerHTML={{ __html: markdownToHtml(article.content) }}
+          />
+        </div>
+      </div>
     </div>
   );
 }

@@ -1,51 +1,82 @@
 'use client';
 
-import { useState, useEffect, useCallback, Suspense } from 'react';
-import { useRouter } from 'next/navigation';
-import dynamic from 'next/dynamic';
-import { Button } from "@/components/ui/button";
-import { Input } from "@/components/ui/input";
-import { Textarea } from "@/components/ui/textarea";
+import { useEffect, useState } from 'react';
+import { useSearchParams } from 'next/navigation';
+import ArticleEditor from '@/components/ArticleEditor';
+import { toast } from "@/components/ui/use-toast";
 
-// Dynamically import the component that uses useSearchParams
-const ArticleEditor = dynamic(() => import('@/components/ArticleEditor'), {
-  ssr: false,
-});
+export default function EditArticlePage() {
+  const [article, setArticle] = useState(null);
+  const searchParams = useSearchParams();
+  const path = searchParams.get('path');
 
-export default function ArticleEditorPage() {
-  const [isLoading, setIsLoading] = useState(true);
-  const [error, setError] = useState(null);
-  const router = useRouter();
-
-  const checkAuth = useCallback(async () => {
-    try {
-      const response = await fetch('/api/check-auth');
-      const data = await response.json();
-      if (!data.isLoggedIn) {
-        router.push('/login');
-      } else {
-        setIsLoading(false);
-      }
-    } catch (error) {
-      console.error('Error checking auth:', error);
-      setError('Failed to authenticate. Please try again.');
-      setIsLoading(false);
-    }
-  }, [router]);
-
+  // 获取文章数据
   useEffect(() => {
-    checkAuth();
-  }, [checkAuth]);
+    const fetchArticle = async () => {
+      try {
+        const response = await fetch(`/api/articles?path=${path}`);
+        if (!response.ok) throw new Error('Failed to fetch article');
+        const data = await response.json();
+        console.log('Fetched article data:', data); // 调试日志
+        setArticle(data);
+      } catch (error) {
+        console.error('Error fetching article:', error);
+        toast({
+          title: "错误",
+          description: "获取文章失败",
+          variant: "destructive",
+        });
+      }
+    };
 
-  if (isLoading) return <div className="container mx-auto p-4">Loading...</div>;
-  if (error) return <div className="container mx-auto p-4">Error: {error}</div>;
+    if (path) {
+      fetchArticle();
+    }
+  }, [path]);
+
+  const handleSubmit = async (updatedArticle) => {
+    try {
+      const response = await fetch('/api/articles', {
+        method: 'POST',
+        headers: {
+          'Content-Type': 'application/json',
+        },
+        body: JSON.stringify({
+          article: {
+            ...updatedArticle,
+            path
+          }
+        }),
+      });
+
+      if (!response.ok) throw new Error('Failed to update article');
+
+      toast({
+        title: "成功",
+        description: "文章已更新",
+      });
+    } catch (error) {
+      console.error('Error updating article:', error);
+      toast({
+        title: "错误",
+        description: "更新文章失败",
+        variant: "destructive",
+      });
+    }
+  };
+
+  // 添加调试日志
+  console.log('Current article state:', article);
 
   return (
     <div className="container mx-auto p-4">
-      <h1 className="text-2xl font-bold mb-4">Edit Article</h1>
-      <Suspense fallback={<div>Loading editor...</div>}>
-        <ArticleEditor />
-      </Suspense>
+      <h1 className="text-2xl font-bold mb-6">Edit Article</h1>
+      {article && (
+        <ArticleEditor 
+          article={article} 
+          onSubmit={handleSubmit}
+        />
+      )}
     </div>
   );
 }

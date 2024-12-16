@@ -5,8 +5,7 @@ date: '2024-12-16'
 category: test
 categoryName: 教程
 ---
-
-![图片](https://mmbiz.qpic.cn/sz_mmbiz_png/ICgnAptln0XicUesUMhqial0X9DmDczJdfKSoBKhkKrrsplg3Z6ReSrPK1DJLibA5iaNicicYNzCRbn2TLG70zosKZZQ/640?wx_fmt=png&from=appmsg&tp=webp&wxfrom=5&wx_lazy=1&wx_co=1)
+![图片](https://raw.githubusercontent.com/DevDenny/ai-dev-navigater/main/uploads/images/1734311396362_uz2eqa.png)
 
 > 狠人来了，昨天Devin刚发布，今天网友Steve (不是普通网友Builder.io的CEO)就花了500美金订阅了，并与20美金的编程神器Cursor进行的对比评测，看完你再决定是否用3500一个月的Devin还是140的Cursor吧
 
@@ -55,3 +54,4 @@ Steve首先测试了一个可以在消费级硬件上运行的小型图像生成
 求赞👇👇
 
 ![图片](/uploads/images/2024-12/1734310512877_10f137f3df360cf3.png)
+

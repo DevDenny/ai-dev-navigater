@@ -1,7 +1,7 @@
 ---
 title: 每月3500的AI码农Devin，还是140的编程神器Cursor？实测来了
 description: test pic and text
-date: '2024-12-13'
+date: '2024-12-16'
 category: test
 categoryName: 教程
 ---
@@ -53,3 +53,5 @@ Steve首先测试了一个可以在消费级硬件上运行的小型图像生成
 ![图片](data:image/svg+xml,%3C%3Fxml version='1.0' encoding='UTF-8'%3F%3E%3Csvg width='1px' height='1px' viewBox='0 0 1 1' version='1.1' xmlns='http://www.w3.org/2000/svg' xmlns:xlink='http://www.w3.org/1999/xlink'%3E%3Ctitle%3E%3C/title%3E%3Cg stroke='none' stroke-width='1' fill='none' fill-rule='evenodd' fill-opacity='0'%3E%3Cg transform='translate(-249.000000, -126.000000)' fill='%23FFFFFF'%3E%3Crect x='249' y='126' width='1' height='1'%3E%3C/rect%3E%3C/g%3E%3C/g%3E%3C/svg%3E)
 
 求赞👇👇
+
+![图片](/uploads/images/2024-12/1734310512877_10f137f3df360cf3.png)

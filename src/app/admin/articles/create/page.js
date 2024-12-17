@@ -13,12 +13,12 @@ export default function CreateArticlePage() {
     setIsLoading(true);
 
     try {
-      const fileName = article.title
+      const slug = article.title
         .toLowerCase()
         .replace(/[^a-z0-9]+/g, '-')
         .replace(/^-+|-+$/g, '');
       
-      const path = `data/md/${fileName}.md`;
+      const path = `data/md/${slug}.md`;
 
       const response = await fetch('/api/articles', {
         method: 'POST',
@@ -28,7 +28,9 @@ export default function CreateArticlePage() {
         body: JSON.stringify({
           article: {
             ...article,
-            path
+            path,
+            slug,
+            date: new Date().toISOString().split('T')[0]
           }
         }),
       });
@@ -61,17 +63,20 @@ export default function CreateArticlePage() {
     description: '',
     content: '',
     category: '',
-    categoryName: ''
+    categoryName: '',
+    date: new Date().toISOString().split('T')[0]
   };
 
   return (
-    <div className="container mx-auto p-4">
+    <div className="container mx-auto p-4 min-h-screen flex flex-col">
       <h1 className="text-2xl font-bold mb-6">创建文章</h1>
-      <ArticleEditor 
-        article={emptyArticle}
-        onSubmit={handleSubmit}
-        isLoading={isLoading}
-      />
+      <div className="flex-1">
+        <ArticleEditor 
+          article={emptyArticle}
+          onSubmit={handleSubmit}
+          isLoading={isLoading}
+        />
+      </div>
     </div>
   );
 }

@@ -1,6 +1,7 @@
 import { NextResponse } from 'next/server';
 import { Octokit } from '@octokit/rest';
 import matter from 'gray-matter';
+import { generateSlug, validateSlug } from '@/lib/utils';
 
 const octokit = new Octokit({
   auth: process.env.GITHUB_TOKEN
@@ -17,11 +18,14 @@ const mdFolderPath = 'data/md';
  * @returns {Promise<NextResponse>} 创建结果的响应
  */
 export async function POST(request) {
-  const { title, description, content, slug } = await request.json();
-
-  // Validate slug
-  if (!/^[a-z0-9]+(?:-[a-z0-9]+)*$/.test(slug)) {
-    return NextResponse.json({ error: 'Invalid slug format' }, { status: 400 });
+  const { title, description, content } = await request.json();
+  
+  // 使用标题生成 slug
+  const slug = generateSlug(title);
+  
+  // 验证生成的 slug
+  if (!validateSlug(slug)) {
+    return NextResponse.json({ error: 'Invalid title format' }, { status: 400 });
   }
 
   const path = `data/md/${slug}.md`;
@@ -115,6 +119,7 @@ async function syncArticles() {
         category: frontMatter.category || '', // 确保分类信息被包含
         lastModified: lastModified,
         path: file.path,
+        slug: slug  // 添加这一行
       };
     }));
 

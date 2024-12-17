@@ -1,82 +1,37 @@
 import { NextResponse } from 'next/server';
+import fs from 'fs';
+import path from 'path';
+import { generateSlug } from '@/lib/utils';
 import { Octokit } from '@octokit/rest';
-import matter from 'gray-matter';
 
 const octokit = new Octokit({
-  auth: process.env.GITHUB_TOKEN,
+  auth: process.env.GITHUB_TOKEN
 });
 
+// 从环境变量获取配置
 const owner = process.env.GITHUB_OWNER;
 const repo = process.env.GITHUB_REPO;
-const apiBranch = process.env.GITHUB_API_BRANCH || 'main';
-const devBranch = process.env.GITHUB_DEV_BRANCH || 'dev';
+const branch = process.env.GITHUB_DEV_BRANCH || 'dev'; // 默认使用 dev 分支
 
-// 根据环境返回对应的分支
-function getCurrentBranch() {
-  return process.env.NODE_ENV === 'development' ? devBranch : apiBranch;
-}
-
-// GET 方法 - 获取文章列表或单篇文章
-export async function GET(request) {
-  const branch = getCurrentBranch();
+export async function GET() {
   try {
-    const { searchParams } = new URL(request.url);
-    const path = searchParams.get('path');
+    const branch = process.env.GITHUB_DEV_BRANCH || 'dev';  // 使用环境变量中的分支
+    console.log('Fetching articles from branch:', branch);
 
-    if (path) {
-      // 获取单篇文章
-      try {
-        const { data: file } = await octokit.repos.getContent({
-          owner,
-          repo,
-          path,
-          ref: branch
-        });
+    const { data: indexFile } = await octokit.repos.getContent({
+      owner,
+      repo,
+      path: 'data/json/articles.json',
+      ref: branch  // 指定分支
+    });
 
-        const content = Buffer.from(file.content, 'base64').toString();
-        const { data: frontMatter, content: markdownContent } = matter(content);
-
-        return NextResponse.json({
-          ...frontMatter,
-          content: markdownContent,
-          path
-        });
-      } catch (error) {
-        console.error('Error fetching article:', error);
-        return NextResponse.json(
-          { message: 'Article not found' },
-          { status: 404 }
-        );
-      }
-    } else {
-      // 获取文章列表
-      try {
-        const { data: indexFile } = await octokit.repos.getContent({
-          owner,
-          repo,
-          path: 'data/json/articles.json',
-          ref: branch
-        });
-
-        const content = Buffer.from(indexFile.content, 'base64').toString();
-        const articles = JSON.parse(content);
-
-        return NextResponse.json(articles);
-      } catch (error) {
-        console.error('Error fetching articles list:', error);
-        // 如果文件不存在，返回空数组
-        if (error.status === 404) {
-          return NextResponse.json([]);
-        }
-        throw error;
-      }
-    }
+    const articles = JSON.parse(Buffer.from(indexFile.content, 'base64').toString());
+    console.log('Found articles:', articles.length);
+    
+    return NextResponse.json(articles);
   } catch (error) {
-    console.error('Error in GET articles:', error);
-    return NextResponse.json(
-      { message: 'Failed to fetch articles' },
-      { status: 500 }
-    );
+    console.error('Error fetching articles:', error);
+    return NextResponse.json({ error: error.message }, { status: 500 });
   }
 }
 
@@ -86,64 +41,46 @@ export async function POST(request) {
   try {
     const { article } = await request.json();
     
-    if (!article.path) {
-      return NextResponse.json(
-        { message: 'Article path is required' }, 
-        { status: 400 }
-      );
-    }
-
-    // 构建文章内容
+    // 确保生成 slug
+    const slug = article.slug || generateSlug(article.title);
+    console.log('Generated slug:', slug);
+    
+    // 构建文章内容，确保包含 slug
     const fileContent = matter.stringify(article.content, {
       title: article.title,
       description: article.description,
-      date: new Date().toISOString().split('T')[0],
+      date: article.date || new Date().toISOString().split('T')[0],
       category: article.category || '',
-      categoryName: article.categoryName || ''
+      categoryName: article.categoryName || '',
+      slug: slug  // 确保在 frontmatter 中包含 slug
     });
 
-    // 检查文件是否已存在
-    let currentSha;
-    try {
-      const { data: currentFile } = await octokit.repos.getContent({
-        owner,
-        repo,
-        path: article.path,
-        ref: branch
-      });
-      currentSha = currentFile.sha;
-    } catch (error) {
-      if (error.status !== 404) throw error;
-    }
+    // 构建完整的文章对象
+    const articleData = {
+      ...article,
+      slug: slug,
+      path: article.path || `data/md/${slug}.md`,
+      lastModified: new Date().toISOString()
+    };
 
-    // 创建或更新文件
+    // 保存文章到 GitHub
     await octokit.repos.createOrUpdateFileContents({
       owner,
       repo,
-      path: article.path,
-      message: currentSha 
-        ? `Update article: ${article.title}`
-        : `Create article: ${article.title}`,
+      branch: branch,
+      path: articleData.path,
+      message: `Create/Update article: ${article.title}`,
       content: Buffer.from(fileContent).toString('base64'),
-      ...(currentSha && { sha: currentSha }),
-      branch
     });
 
     // 更新文章索引
-    await updateArticleIndex(article, branch);
+    await updateArticleIndex(articleData, branch);
 
-    return NextResponse.json({ 
-      success: true,
-      message: currentSha ? '文章更新成功' : '文章创建成功'
-    });
-
+    return NextResponse.json({ success: true, slug: slug });
   } catch (error) {
-    console.error('Error saving article:', error);
+    console.error('Error creating/updating article:', error);
     return NextResponse.json(
-      { 
-        message: error.message || 'Failed to save article',
-        error: error.toString()
-      }, 
+      { error: 'Failed to create/update article', details: error.message },
       { status: 500 }
     );
   }
@@ -152,7 +89,7 @@ export async function POST(request) {
 // 更新文章索引的辅助函数
 async function updateArticleIndex(article, branch) {
   try {
-    // 获取现有的文章索引
+    console.log('Updating article index with:', article);
     let articles = [];
     let indexFile;
     
@@ -167,39 +104,122 @@ async function updateArticleIndex(article, branch) {
       const content = Buffer.from(indexFile.content, 'base64').toString();
       articles = JSON.parse(content);
     } catch (error) {
+      console.log('No existing articles.json found, creating new one');
       if (error.status !== 404) throw error;
     }
 
-    // 更新或添加文章信息
-    const articleIndex = articles.findIndex(a => a.path === article.path);
-    const articleInfo = {
+    // 确保每篇文章都有必要的字段
+    const articleToSave = {
       title: article.title,
       description: article.description,
-      date: new Date().toISOString().split('T')[0],
-      category: article.category || '',
-      categoryName: article.categoryName || '',
+      date: article.date,
+      category: article.category,
+      categoryName: article.categoryName,
       path: article.path,
-      lastModified: new Date().toISOString()
+      slug: article.slug,
+      lastModified: article.lastModified
     };
 
-    if (articleIndex > -1) {
-      articles[articleIndex] = articleInfo;
+    // 更新或添加文章
+    const existingIndex = articles.findIndex(a => a.slug === article.slug);
+    if (existingIndex > -1) {
+      articles[existingIndex] = articleToSave;
     } else {
-      articles.unshift(articleInfo);
+      articles.unshift(articleToSave);
     }
 
     // 保存更新后的索引
     await octokit.repos.createOrUpdateFileContents({
       owner,
       repo,
+      branch: branch,
       path: 'data/json/articles.json',
       message: `Update articles index for: ${article.title}`,
       content: Buffer.from(JSON.stringify(articles, null, 2)).toString('base64'),
-      branch,
       ...(indexFile && { sha: indexFile.sha })
     });
   } catch (error) {
-    console.error('Error updating article index:', error);
+    console.error('Error in updateArticleIndex:', error);
     throw error;
+  }
+}
+
+export async function DELETE(request) {
+  try {
+    const { slug } = await request.json();
+    const branch = process.env.GITHUB_DEV_BRANCH || 'dev';
+    
+    console.log('Starting delete operation with:', { slug, branch, owner, repo });
+    
+    try {
+      // 1. 获取文章索引
+      console.log('Fetching articles.json from branch:', branch);
+      const { data: indexFile } = await octokit.repos.getContent({
+        owner,
+        repo,
+        path: 'data/json/articles.json',
+        ref: branch
+      });
+      
+      console.log('Parsing articles.json...');
+      const articles = JSON.parse(Buffer.from(indexFile.content, 'base64').toString());
+      console.log('Available articles:', articles.map(a => ({ slug: a.slug, title: a.title })));
+      
+      const articleToDelete = articles.find(a => a.slug === slug);
+      console.log('Article to delete:', articleToDelete);
+      
+      if (!articleToDelete) {
+        console.log('Article not found with slug:', slug);
+        return NextResponse.json({ 
+          error: 'Article not found',
+          debug: { 
+            availableSlugs: articles.map(a => a.slug),
+            searchedSlug: slug,
+            branch
+          }
+        }, { status: 404 });
+      }
+      
+      // 2. 删除 MD 文件
+      console.log('Fetching MD file:', articleToDelete.path);
+      const { data: mdFile } = await octokit.repos.getContent({
+        owner,
+        repo,
+        path: articleToDelete.path,
+        ref: branch
+      });
+      
+      await octokit.repos.deleteFile({
+        owner,
+        repo,
+        path: articleToDelete.path,
+        message: `Delete article: ${articleToDelete.title}`,
+        sha: mdFile.sha,
+        branch
+      });
+      
+      // 3. 更新文章索引
+      const updatedArticles = articles.filter(a => a.slug !== slug);
+      await octokit.repos.createOrUpdateFileContents({
+        owner,
+        repo,
+        branch,
+        path: 'data/json/articles.json',
+        message: `Remove article from index: ${articleToDelete.title}`,
+        content: Buffer.from(JSON.stringify(updatedArticles, null, 2)).toString('base64'),
+        sha: indexFile.sha
+      });
+      
+      return NextResponse.json({ success: true });
+    } catch (error) {
+      console.error('GitHub API Error:', error);
+      return NextResponse.json({ 
+        error: error.message || 'Failed to delete article',
+        details: error.response?.data || {}
+      }, { status: error.status || 500 });
+    }
+  } catch (error) {
+    console.error('Request processing error:', error);
+    return NextResponse.json({ error: 'Invalid request' }, { status: 400 });
   }
 }

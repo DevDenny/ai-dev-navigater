@@ -12,11 +12,14 @@ import {
   TableHeader,
   TableRow,
 } from "@/components/ui/table";
+import { useRouter } from 'next/navigation';
+import { toast } from "@/components/ui/use-toast";
 
 export default function AdminArticlesPage() {
   const [articles, setArticles] = useState([]);
   const [isLoading, setIsLoading] = useState(true);
   const [error, setError] = useState(null);
+  const router = useRouter();
 
   useEffect(() => {
     fetchArticles();
@@ -24,13 +27,18 @@ export default function AdminArticlesPage() {
 
   const fetchArticles = async () => {
     try {
+      setIsLoading(true);
       const response = await fetch('/api/articles');
-      if (!response.ok) throw new Error('Failed to fetch articles');
+      if (!response.ok) {
+        const error = await response.json();
+        throw new Error(error.message || 'Failed to fetch articles');
+      }
       const data = await response.json();
+      console.log('Fetched articles:', data);
       setArticles(data);
     } catch (error) {
-      console.error('Error:', error);
-      setError('Failed to load articles');
+      console.error('Error fetching articles:', error);
+      setError(error.message);
     } finally {
       setIsLoading(false);
     }
@@ -44,6 +52,61 @@ export default function AdminArticlesPage() {
     } catch (error) {
       console.error('Error:', error);
       alert('Failed to sync articles');
+    }
+  };
+
+  const handleEdit = (article) => {
+    console.log('Editing article:', article);
+    const slug = article.slug || generateSlug(article.title);
+    console.log('Generated slug:', slug);
+    router.push(`/admin/articles/${slug}/edit`);
+  };
+
+  const handleDelete = async (article) => {
+    if (!article.slug) {
+      toast({
+        title: "错误",
+        description: "文章缺少必要的标识信息",
+        variant: "destructive",
+      });
+      return;
+    }
+
+    if (!confirm(`确定要删除文章"${article.title}"吗？`)) return;
+    
+    try {
+      console.log('Deleting article:', article);
+      const response = await fetch('/api/articles', {
+        method: 'DELETE',
+        headers: {
+          'Content-Type': 'application/json',
+        },
+        body: JSON.stringify({ slug: article.slug })
+      });
+      
+      const data = await response.json();
+      
+      if (!response.ok) {
+        console.error('Delete response:', data);
+        throw new Error(
+          data.error || 'Failed to delete article' + 
+          (data.debug ? `: ${JSON.stringify(data.debug)}` : '')
+        );
+      }
+      
+      toast({
+        title: "成功",
+        description: "文章删除成功",
+      });
+      
+      await fetchArticles();
+    } catch (error) {
+      console.error('Error deleting article:', error);
+      toast({
+        title: "错误",
+        description: error.message || "删除文章失败",
+        variant: "destructive",
+      });
     }
   };
 
@@ -76,8 +139,8 @@ export default function AdminArticlesPage() {
           </TableRow>
         </TableHeader>
         <TableBody>
-          {articles.map((article, index) => (
-            <TableRow key={index}>
+          {articles.map((article) => (
+            <TableRow key={article.path}>
               <TableCell>{article.title}</TableCell>
               <TableCell>{article.description}</TableCell>
               <TableCell>
@@ -90,9 +153,20 @@ export default function AdminArticlesPage() {
               <TableCell>{new Date(article.date).toLocaleDateString()}</TableCell>
               <TableCell>{new Date(article.lastModified).toLocaleString()}</TableCell>
               <TableCell>
-                <Link href={`/admin/articles/edit?path=${encodeURIComponent(article.path)}`}>
-                  <Button>Edit</Button>
-                </Link>
+                <div className="space-x-2">
+                  <Button 
+                    variant="outline" 
+                    onClick={() => handleEdit(article)}
+                  >
+                    编辑
+                  </Button>
+                  <Button 
+                    variant="destructive"
+                    onClick={() => handleDelete(article)}
+                  >
+                    删除
+                  </Button>
+                </div>
               </TableCell>
             </TableRow>
           ))}

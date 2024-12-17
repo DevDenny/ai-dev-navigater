@@ -1,5 +1,15 @@
 [
   {
+    "title": "testsi",
+    "description": "testsitestsitestsi",
+    "content": "testsitestsitestsi",
+    "category": "test",
+    "categoryName": "教程",
+    "date": "2024-12-17",
+    "path": "data/md/testsi.md",
+    "slug": "testsi"
+  },
+  {
     "title": "测试-Redux快速体验",
     "description": "Redux快速体验",
     "content": "\n## Redux快速体验\n### 实现一个计数器\n步骤：\n- 1.定义一个 reducer 函数 (根据当前想要做的修改返回一个新的状态)\n- 2.使用createStore方法传入 reducer函数 生成一个store实例对象\n- 3.使用store实例的 subscribe方法 订阅数据的变化(数据一旦变化，可以得到通知)\n- 4.使用store实例的 dispatch方法提交action对象 触发数据变化(告诉reducer你想怎么改数据)\n- 5.使用store实例的 getState方法 获取最新的状态数据更新到视图中\n\n### Redux管理数据流程梳理\n![[Pasted image 20240530102008.png]]\n为了职责清晰，数据流向明确，Redux把整个数据修改的流程分成了三个核心概念，分别是:state、action和reducer\n- 1.state-一个对象 存放着我们管理的数据状态\n- 2.action-一个对象 用来描述你想怎么改数据\n- 3.reducer--个函数 更具action的描述生成一个新的state\n\n### 代码实现\n```js\n<script>\n  // 1. 定义reducer函数 \n  // 作用: 根据不同的action对象，返回不同的新的state\n  // state: 管理的数据初始状态\n  // action: 对象 type 标记当前想要做什么样的修改\n  function reducer (state = { count: 0 }, action) {\n    // 数据不可变：基于原始状态生成一个新的状态\n    if (action.type === 'INCREMENT') {\n      return { count: state.count + 1 }\n    }\n    if (action.type === 'DECREMENT') {\n      return { count: state.count - 1 }\n    }\n    return state\n  }\n\n  // 2. 使用reducer函数生成store实例\n  const store = Redux.createStore(reducer)\n\n  // 3. 通过store实例的subscribe订阅数据变化\n  // 回调函数可以在每次state发生变化的时候自动执行\n  store.subscribe(() => {\n    console.log('state变化了', store.getState())\n    document.getElementById('count').innerText = store.getState().count\n  })\n\n  // 4. 通过store实例的dispatch函数提交action更改状态 \n  const inBtn = document.getElementById('increment')\n  inBtn.addEventListener('click', () => {\n    // 增\n    store.dispatch({\n      type: 'INCREMENT'\n    })\n  })\n\n  const dBtn = document.getElementById('decrement')\n  dBtn.addEventListener('click', () => {\n    // 减\n    store.dispatch({\n      type: 'DECREMENT'\n    })\n  })\n\n  // 5. 通过store实例的getState方法获取最新状态更新到视图中\n\n</script>\n```\n\n# Redux&React 环境准备\n## 安装必要插件\n创建项目\n```java\nnpx create-react-app react-redux-pro\n```\n\n安装配套工具\n```js\nnpm i @reduxjs/toolkit react-redux\n```\n启动项目\n```js\nnpm run start\n```\n## 建立store目录\n![[Pasted image 20240530105153.png]]\n- 1.通常集中状态管理的部分都会单独创建一个单独的`store`目录\n- 2.应用通常会有很多个子store模块，所以创建一个`modules`目录，在内部编写业务分类的子store\n- 3.store中的入口文件 index.is 的作用是组合modules中所有的子模块，并导出store\n![图片描述](https://raw.githubusercontent.com/DevDenny/ai-dev-navigater/main/uploads/images/1734405524003_0dy8tn.png)",

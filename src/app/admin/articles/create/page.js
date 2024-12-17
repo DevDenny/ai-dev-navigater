@@ -2,81 +2,76 @@
 
 import { useState } from 'react';
 import { useRouter } from 'next/navigation';
-import { Button } from "@/components/ui/button";
-import { Input } from "@/components/ui/input";
-import { Textarea } from "@/components/ui/textarea";
-import { Alert } from "@/components/ui/alert";
+import { toast } from '@/components/ui/use-toast';
+import ArticleEditor from '@/components/ArticleEditor';
 
 export default function CreateArticlePage() {
-  const [article, setArticle] = useState({ title: '', description: '', content: '', slug: '' });
-  const [error, setError] = useState(null);
-  const [isLoading, setIsLoading] = useState(false);
   const router = useRouter();
+  const [isLoading, setIsLoading] = useState(false);
 
-  const handleInputChange = (e) => {
-    const { name, value } = e.target;
-    setArticle({ ...article, [name]: value });
-  };
-
-  const handleSave = async () => {
+  const handleSubmit = async (article) => {
     setIsLoading(true);
-    setError(null);
 
     try {
-      const response = await fetch('/api/articles/create', {
+      const fileName = article.title
+        .toLowerCase()
+        .replace(/[^a-z0-9]+/g, '-')
+        .replace(/^-+|-+$/g, '');
+      
+      const path = `data/md/${fileName}.md`;
+
+      const response = await fetch('/api/articles', {
         method: 'POST',
-        headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify(article),
+        headers: {
+          'Content-Type': 'application/json',
+        },
+        body: JSON.stringify({
+          article: {
+            ...article,
+            path
+          }
+        }),
       });
 
       if (!response.ok) {
-        const data = await response.json();
-        throw new Error(data.error || 'Failed to create article');
+        const error = await response.json();
+        throw new Error(error.message || 'Failed to create article');
       }
 
+      toast({
+        title: "成功",
+        description: "文章创建成功",
+      });
+      
       router.push('/admin/articles');
     } catch (error) {
       console.error('Error creating article:', error);
-      setError(error.message);
+      toast({
+        title: "错误",
+        description: error.message || "创建文章失败，请重试",
+        variant: "destructive",
+      });
     } finally {
       setIsLoading(false);
     }
   };
 
+  const emptyArticle = {
+    title: '',
+    description: '',
+    content: '',
+    category: '',
+    categoryName: ''
+  };
+
   return (
     <div className="container mx-auto p-4">
-      <h1 className="text-2xl font-bold mb-4">Create New Article</h1>
-      {error && <Alert variant="destructive" className="mb-4">{error}</Alert>}
-      <div className="space-y-4">
-        <Input
-          name="title"
-          value={article.title}
-          onChange={handleInputChange}
-          placeholder="Article Title"
-        />
-        <Input
-          name="description"
-          value={article.description}
-          onChange={handleInputChange}
-          placeholder="Article Description"
-        />
-        <Input
-          name="slug"
-          value={article.slug}
-          onChange={handleInputChange}
-          placeholder="Article Slug (e.g., my-new-article)"
-        />
-        <Textarea
-          name="content"
-          value={article.content}
-          onChange={handleInputChange}
-          placeholder="Article Content (Markdown)"
-          rows={20}
-        />
-        <Button onClick={handleSave} disabled={isLoading}>
-          {isLoading ? 'Creating...' : 'Create Article'}
-        </Button>
-      </div>
+      <h1 className="text-2xl font-bold mb-6">创建文章</h1>
+      <ArticleEditor 
+        article={emptyArticle}
+        onSubmit={handleSubmit}
+        isLoading={isLoading}
+      />
     </div>
   );
 }

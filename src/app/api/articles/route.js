@@ -1,8 +1,6 @@
 import { NextResponse } from 'next/server';
-import path from 'path';
-import { readFileSync, readdirSync } from 'fs';
-import matter from 'gray-matter';
 import { Octokit } from '@octokit/rest';
+import matter from 'gray-matter';
 
 const octokit = new Octokit({
   auth: process.env.GITHUB_TOKEN,
@@ -10,123 +8,198 @@ const octokit = new Octokit({
 
 const owner = process.env.GITHUB_OWNER;
 const repo = process.env.GITHUB_REPO;
-// 保留这些环境变量相关的代码
 const apiBranch = process.env.GITHUB_API_BRANCH || 'main';
 const devBranch = process.env.GITHUB_DEV_BRANCH || 'dev';
 
-// 保留这个用于环境变量的函数
+// 根据环境返回对应的分支
 function getCurrentBranch() {
   return process.env.NODE_ENV === 'development' ? devBranch : apiBranch;
 }
 
-export async function POST(request) {
+// GET 方法 - 获取文章列表或单篇文章
+export async function GET(request) {
+  const branch = getCurrentBranch();
   try {
-    const { article } = await request.json();
-    const { title, description, content, category, path: filePath } = article;
+    const { searchParams } = new URL(request.url);
+    const path = searchParams.get('path');
 
-    // 构建文章内容
-    const fileContent = matter.stringify(content, {
-      title,
-      description,
-      date: new Date().toISOString().split('T')[0],
-      category: category || '',
-    });
-
-    // 获取文件的当前 SHA
-    let currentSha;
-    if (filePath) {
+    if (path) {
+      // 获取单篇文章
       try {
-        const { data: currentFile } = await octokit.repos.getContent({
+        const { data: file } = await octokit.repos.getContent({
           owner,
           repo,
-          path: filePath,
-          ref: getCurrentBranch(), // 添加分支参数
+          path,
+          ref: branch
         });
-        currentSha = currentFile.sha;
+
+        const content = Buffer.from(file.content, 'base64').toString();
+        const { data: frontMatter, content: markdownContent } = matter(content);
+
+        return NextResponse.json({
+          ...frontMatter,
+          content: markdownContent,
+          path
+        });
       } catch (error) {
-        // 如果文件不存在，继续创建
-        if (error.status !== 404) throw error;
+        console.error('Error fetching article:', error);
+        return NextResponse.json(
+          { message: 'Article not found' },
+          { status: 404 }
+        );
+      }
+    } else {
+      // 获取文章列表
+      try {
+        const { data: indexFile } = await octokit.repos.getContent({
+          owner,
+          repo,
+          path: 'data/json/articles.json',
+          ref: branch
+        });
+
+        const content = Buffer.from(indexFile.content, 'base64').toString();
+        const articles = JSON.parse(content);
+
+        return NextResponse.json(articles);
+      } catch (error) {
+        console.error('Error fetching articles list:', error);
+        // 如果文件不存在，返回空数组
+        if (error.status === 404) {
+          return NextResponse.json([]);
+        }
+        throw error;
       }
     }
-
-    // 更新文件
-    await octokit.repos.createOrUpdateFileContents({
-      owner,
-      repo,
-      path: filePath,
-      message: `Update article: ${title}`,
-      content: Buffer.from(fileContent).toString('base64'),
-      branch: getCurrentBranch(), // 添加分支参数
-      ...(currentSha && { sha: currentSha }),
-    });
-
-    return NextResponse.json({ success: true });
   } catch (error) {
-    console.error('Error saving article:', error);
-    return NextResponse.json({ error: 'Failed to save article' }, { status: 500 });
+    console.error('Error in GET articles:', error);
+    return NextResponse.json(
+      { message: 'Failed to fetch articles' },
+      { status: 500 }
+    );
   }
 }
 
-export async function GET(request) {
+// POST 方法 - 创建或更新文章
+export async function POST(request) {
+  const branch = getCurrentBranch();
   try {
-    const { searchParams } = new URL(request.url);
-    const filePath = searchParams.get('path');
-
-    if (filePath) {
-      // 获取单篇文章
-      const { data } = await octokit.repos.getContent({
-        owner,
-        repo,
-        path: filePath,
-        ref: getCurrentBranch(), // 添加分支参数
-      });
-
-      const content = Buffer.from(data.content, 'base64').toString('utf8');
-      const { data: frontMatter, content: articleContent } = matter(content);
-
-      return NextResponse.json({
-        title: frontMatter.title || '',
-        description: frontMatter.description || '',
-        content: articleContent || '',
-        category: frontMatter.category || '',
-        path: filePath,
-      });
+    const { article } = await request.json();
+    
+    if (!article.path) {
+      return NextResponse.json(
+        { message: 'Article path is required' }, 
+        { status: 400 }
+      );
     }
 
-    // 获取文章列表
-    const { data: files } = await octokit.repos.getContent({
-      owner,
-      repo,
-      path: 'data/md',
-      ref: getCurrentBranch(), // 添加分支参数
+    // 构建文章内容
+    const fileContent = matter.stringify(article.content, {
+      title: article.title,
+      description: article.description,
+      date: new Date().toISOString().split('T')[0],
+      category: article.category || '',
+      categoryName: article.categoryName || ''
     });
 
-    const articles = await Promise.all(
-      files
-        .filter(file => file.name.endsWith('.md'))
-        .map(async file => {
-          const { data } = await octokit.repos.getContent({
-            owner,
-            repo,
-            path: file.path,
-            ref: getCurrentBranch(), // 添加分支参数
-          });
+    // 检查文件是否已存在
+    let currentSha;
+    try {
+      const { data: currentFile } = await octokit.repos.getContent({
+        owner,
+        repo,
+        path: article.path,
+        ref: branch
+      });
+      currentSha = currentFile.sha;
+    } catch (error) {
+      if (error.status !== 404) throw error;
+    }
 
-          const content = Buffer.from(data.content, 'base64').toString('utf8');
-          const { data: frontMatter } = matter(content);
+    // 创建或更新文件
+    await octokit.repos.createOrUpdateFileContents({
+      owner,
+      repo,
+      path: article.path,
+      message: currentSha 
+        ? `Update article: ${article.title}`
+        : `Create article: ${article.title}`,
+      content: Buffer.from(fileContent).toString('base64'),
+      ...(currentSha && { sha: currentSha }),
+      branch
+    });
 
-          return {
-            title: frontMatter.title || '',
-            description: frontMatter.description || '',
-            category: frontMatter.category || '',
-            path: file.path,
-          };
-        })
-    );
+    // 更新文章索引
+    await updateArticleIndex(article, branch);
 
-    return NextResponse.json(articles);
+    return NextResponse.json({ 
+      success: true,
+      message: currentSha ? '文章更新成功' : '文章创建成功'
+    });
+
   } catch (error) {
-    console.error('Error reading articles:', error);
-    return NextResponse.json({ error: 'Failed to read articles' }, { status: 500 });
+    console.error('Error saving article:', error);
+    return NextResponse.json(
+      { 
+        message: error.message || 'Failed to save article',
+        error: error.toString()
+      }, 
+      { status: 500 }
+    );
+  }
+}
+
+// 更新文章索引的辅助函数
+async function updateArticleIndex(article, branch) {
+  try {
+    // 获取现有的文章索引
+    let articles = [];
+    let indexFile;
+    
+    try {
+      const response = await octokit.repos.getContent({
+        owner,
+        repo,
+        path: 'data/json/articles.json',
+        ref: branch
+      });
+      indexFile = response.data;
+      const content = Buffer.from(indexFile.content, 'base64').toString();
+      articles = JSON.parse(content);
+    } catch (error) {
+      if (error.status !== 404) throw error;
+    }
+
+    // 更新或添加文章信息
+    const articleIndex = articles.findIndex(a => a.path === article.path);
+    const articleInfo = {
+      title: article.title,
+      description: article.description,
+      date: new Date().toISOString().split('T')[0],
+      category: article.category || '',
+      categoryName: article.categoryName || '',
+      path: article.path,
+      lastModified: new Date().toISOString()
+    };
+
+    if (articleIndex > -1) {
+      articles[articleIndex] = articleInfo;
+    } else {
+      articles.unshift(articleInfo);
+    }
+
+    // 保存更新后的索引
+    await octokit.repos.createOrUpdateFileContents({
+      owner,
+      repo,
+      path: 'data/json/articles.json',
+      message: `Update articles index for: ${article.title}`,
+      content: Buffer.from(JSON.stringify(articles, null, 2)).toString('base64'),
+      branch,
+      ...(indexFile && { sha: indexFile.sha })
+    });
+  } catch (error) {
+    console.error('Error updating article index:', error);
+    throw error;
   }
 }

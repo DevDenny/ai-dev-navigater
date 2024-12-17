@@ -1,8 +1,8 @@
 'use client';
 
 import { useState } from 'react';
-import { Button } from "@/components/ui/button";
-import { toast } from "@/components/ui/use-toast";
+import { Button } from '@/components/ui/button';
+import { toast } from '@/components/ui/use-toast';
 
 export default function ImageUploader({ onUploadSuccess }) {
   const [isUploading, setIsUploading] = useState(false);
@@ -35,7 +35,6 @@ export default function ImageUploader({ onUploadSuccess }) {
     formData.append('file', file);
 
     try {
-      // 上传到 GitHub 仓库
       const response = await fetch('/api/github/upload', {
         method: 'POST',
         body: formData,
@@ -52,7 +51,6 @@ export default function ImageUploader({ onUploadSuccess }) {
           title: "成功",
           description: "图片上传成功",
         });
-        // 返回 GitHub raw 链接
         onUploadSuccess(data.url);
       }
     } catch (error) {
@@ -68,24 +66,21 @@ export default function ImageUploader({ onUploadSuccess }) {
   };
 
   return (
-    <div className="flex items-center gap-4">
+    <div>
       <input
         type="file"
         accept="image/*"
         onChange={handleUpload}
         className="hidden"
         id="image-upload"
-        disabled={isUploading}
       />
       <label htmlFor="image-upload">
         <Button 
-          variant="outline" 
+          type="button" 
           disabled={isUploading}
           asChild
         >
-          <span>
-            {isUploading ? '上传中...' : '上传图片'}
-          </span>
+          <span>{isUploading ? '上传中...' : '选择图片'}</span>
         </Button>
       </label>
     </div>

@@ -28,12 +28,5 @@
     "name": "Woy.ai",
     "description": "AI Tools Directory",
     "url": "https://woy.ai"
-  },
-  {
-    "name": "百度",
-    "description": "百度一下",
-    "url": "http://www.baidu.com",
-    "id": "1734583196461",
-    "createdAt": "2024-12-19T04:39:56.461Z"
   }
 ]

@@ -5,16 +5,37 @@ import { getSortedPostsData } from '@/lib/posts'
 import ResourceList from '@/components/ResourceList'
 import ArticleList from '@/components/ArticleList'
 import { Metadata } from 'next'
+import { getCategories, Category } from '@/lib/categories'
+import { Card, CardHeader, CardTitle, CardDescription } from '@/components/ui/card'
+import Link from 'next/link'
 
 export const metadata: Metadata = {
   title: 'GitBase - Open Source Dynamic Website CMS Without Database',
   description: 'A Next.js site with Tailwind & Shadcn/UI, using GitHub API for content management. No database needed for dynamic updates.',
 }
 
+interface Post {
+  category: string;
+  // ... other post properties
+}
+
 export default function Home() {
   const resourcesPath = path.join(process.cwd(), 'data', 'json', 'resources.json')
   const resources = JSON.parse(fs.readFileSync(resourcesPath, 'utf8'))
-  const allPostsData = getSortedPostsData().slice(0, 6)
+  const allPostsData = getSortedPostsData()
+  const categories = getCategories()
+
+  // 按分类对文章进行分组
+  const postsByCategory = categories.reduce((acc: Record<string, any>, category: Category) => {
+    const categoryPosts = allPostsData.filter((post: Post) => post.category === category.slug)
+    if (categoryPosts.length > 0) {
+      acc[category.slug] = {
+        name: category.name,
+        posts: categoryPosts.slice(0, 6)
+      }
+    }
+    return acc
+  }, {})
 
   return (
     <div className="bg-background">
@@ -34,7 +55,22 @@ export default function Home() {
         </section>
 
         <ResourceList resources={resources} />
-        <ArticleList articles={allPostsData} />
+
+        {/* 分类文章展示 */}
+        {Object.entries(postsByCategory).map(([slug, category]) => (
+          <section key={slug}>
+            <div className="flex justify-between items-center mb-4">
+              <h2 className="text-2xl font-bold">{category.name}</h2>
+              <a
+                href={`/articles/category/${slug}`}
+                className="text-primary hover:text-primary/90"
+              >
+                更多...
+              </a>
+            </div>
+            <ArticleList articles={category.posts} />
+          </section>
+        ))}
       </div>
     </div>
   )

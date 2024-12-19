@@ -3,6 +3,7 @@ import fs from 'fs';
 import path from 'path';
 import { generateSlug } from '@/lib/utils';
 import { Octokit } from '@octokit/rest';
+import matter from 'gray-matter';
 
 const octokit = new Octokit({
   auth: process.env.GITHUB_TOKEN
@@ -12,6 +13,14 @@ const octokit = new Octokit({
 const owner = process.env.GITHUB_OWNER;
 const repo = process.env.GITHUB_REPO;
 const branch = process.env.GITHUB_DEV_BRANCH || 'dev'; // 默认使用 dev 分支
+
+// 添加分支控制相关代码
+const apiBranch = process.env.GITHUB_API_BRANCH || 'main';
+const devBranch = process.env.GITHUB_DEV_BRANCH || 'dev';
+
+function getCurrentBranch() {
+  return process.env.NODE_ENV === 'development' ? devBranch : apiBranch;
+}
 
 export async function GET() {
   try {

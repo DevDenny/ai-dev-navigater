@@ -12,6 +12,14 @@ const repo = process.env.GITHUB_REPO;
 const githubPath = 'data/json/resources.json';
 const localPath = path.join(process.cwd(), 'data', 'json', 'resources.json');
 
+// 添加分支控制
+const apiBranch = process.env.GITHUB_API_BRANCH || 'main';
+const devBranch = process.env.GITHUB_DEV_BRANCH || 'dev';
+
+function getCurrentBranch() {
+  return process.env.NODE_ENV === 'development' ? devBranch : apiBranch;
+}
+
 /**
  * 从 GitHub 获取资源列表
  * @returns {Promise<Array>} 资源列表
@@ -67,30 +75,58 @@ export async function GET(req) {
  * 更新资源列表到 GitHub 和本地
  */
 export async function POST(req) {
-  const updatedResources = await req.json();
-
   try {
+    const newResource = await req.json();
+    console.log('Received new resource:', newResource);
+    const branch = getCurrentBranch();
+    console.log('Current branch:', branch);
+
+    // 获取现有资源
     const { data: currentFile } = await octokit.repos.getContent({
       owner,
       repo,
       path: githubPath,
+      ref: branch  // 指定分支
     });
 
+    let resources = [];
+    try {
+      const content = Buffer.from(currentFile.content, 'base64').toString('utf8');
+      resources = JSON.parse(content);
+      if (!Array.isArray(resources)) {
+        resources = [];
+        console.log('Existing resources is not an array, initializing empty array');
+      }
+    } catch (error) {
+      console.log('Error parsing resources, initializing empty array:', error);
+      resources = [];
+    }
+    
+    // 添加新资源
+    const updatedResources = [...resources, {
+      ...newResource,
+      id: Date.now().toString(),
+      createdAt: new Date().toISOString()
+    }];
+
+    // 更新到 GitHub
     await octokit.repos.createOrUpdateFileContents({
       owner,
       repo,
+      branch: branch,  // 指定分支
       path: githubPath,
-      message: 'Update resources',
+      message: 'Add new resource',
       content: Buffer.from(JSON.stringify(updatedResources, null, 2)).toString('base64'),
-      sha: currentFile.sha,
+      sha: currentFile.sha
     });
 
-    // 注意：本地文件更新已被注释，因为在生产环境中可能不需要
-    // fs.writeFileSync(localPath, JSON.stringify(updatedResources, null, 2));
-
-    return NextResponse.json(updatedResources);
+    console.log('Resource created successfully on branch:', branch);
+    return NextResponse.json({ success: true, resource: newResource });
   } catch (error) {
-    console.error('Error updating resources:', error);
-    return NextResponse.json({ error: 'Failed to update resources' }, { status: 500 });
+    console.error('Error in POST /api/resources:', error);
+    return NextResponse.json(
+      { error: 'Failed to create resource', details: error.message },
+      { status: 500 }
+    );
   }
 }

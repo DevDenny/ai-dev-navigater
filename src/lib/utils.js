@@ -1,6 +1,14 @@
 import { clsx } from "clsx";
 import { twMerge } from "tailwind-merge";
 
+// 分支控制
+const apiBranch = process.env.GITHUB_API_BRANCH || 'main';
+const devBranch = process.env.GITHUB_DEV_BRANCH || 'dev';
+
+export function getCurrentBranch() {
+  return process.env.NODE_ENV === 'development' ? devBranch : apiBranch;
+}
+
 // 用于合并 CSS 类名的工具函数
 export function cn(...inputs) {
   return twMerge(clsx(inputs));
